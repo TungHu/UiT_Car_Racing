@@ -1,7 +1,3 @@
-"""my_python_controller controller."""
-
-# You may need to import some classes of the controller module. Ex:
-#  from controller import Robot, Motor, DistanceSensor
 from controller import Robot
 from controller import Motor
 from controller import DistanceSensor
@@ -9,30 +5,18 @@ from controller import Camera
 from controller import LED
 from controller import Supervisor
 import math
-
-# create the Robot instance
 robot = Robot()
 
-# get the time step of the current world
-timestep = 8
-
-# You should insert a getDevice-like function in order to get the
-# instance of a device of the robot. Something like:
-#  motor = robot.getDevice('motorname')
-#  ds = robot.getDevice('dsname')
-#  ds.enable(timestep)
+timestep = 32
 robot.step(timestep)
         
-# Camera
 cam = robot.getDevice("camera")
 cam.enable(64)
     
-# Leff motor
 lm = robot.getDevice("left wheel motor")
 lm.setPosition(float("inf"))
 lm.setVelocity(0)
 
-# Right motor
 rm = robot.getDevice("right wheel motor")
 rm.setPosition(float("inf"))
 rm.setVelocity(0)
@@ -57,32 +41,7 @@ led_Names = [
 for i in range(NB_LEDS):
     leds.append(robot.getDevice(led_Names[i]))
 
-NOP = -1
-MID = 0
-LEFT  = 1
-RIGHT = 2
-FULL_SIGNAL  = 3
-BLANK_SIGNAL = 4
-
-MAX_SPEED = 60
-
-intersectionDirect = NOP
-threshold = [300, 300, 300, 300, 300, 300, 300, 300]
-preFilted = 0b00000000
-
-left_ratio = 0.0
-right_ratio = 0.0
-
-# Waiting for completing initialization
-initTime = robot.getTime()
-while robot.step(timestep) != -1:
-    if (robot.getTime() - initTime) * 1000.0 > 200:
-        break
-
 ### Private Functions ###
-# You should declare all your functions to get data, process data and
-# control your robot outputs such as: motors, LEDs, etc in this field.
-
 # Function to control LEDs
 def LED_Alert():
     if (robot.getTime() - initTime)*1000 % 3000 >= 2000:
@@ -92,129 +51,304 @@ def LED_Alert():
             #leds[i].set(not(leds[i].get()))
     return
 
-# Function to read data from ground sensors
+# Waiting for completing initialization
+initTime = robot.getTime()
+while robot.step(timestep) != -1:
+    if (robot.getTime() - initTime) * 1000.0 > 200:
+        break
+
+
+### Phần code được phép chỉnh sửa cho phù hợp ##
+
+# Định nghĩa các tín hiệu của xe
+NOP = -1
+MID = 0
+LEFT_1 = 1
+LEFT_2 = 2
+LEFT_3 = 3
+LEFT_4 = 4
+LEFT_5 = 5
+LEFT_6 = 6
+RIGHT_1 = -1
+RIGHT_2 = -2
+RIGHT_3 = -3
+RIGHT_4 = -4
+RIGHT_5 = -5
+RIGHT_6 = -6
+FULL_SIGNAL  = 8
+BLANK_SIGNAL = -8
+LEFT = 9
+RIGHT = -9
+LEFT_inter = 10
+RIGHT_inter = -10
+O = 11
+MAX_SPEED = 20
+
+#threshold = [300, 300, 300, 300, 300, 300, 300, 300]
+threshold = [330, 330, 330, 330, 330, 330, 330, 330]
+#threshold = [350, 350, 350, 350, 350, 350, 350, 350]
+#threshold = [370, 370, 370, 370, 370, 370, 370, 350]
+
+# Biến lưu giá trị tỉ lệ tốc độ của động cơ
+left_ratio = 0.0
+right_ratio = 0.0
+
+# Hàm đọc giá trị của sensors
 def ReadSensors():
     gsValues = []
-    filted = 0x00
-
+    filted = ""
     for i in range(NB_GROUND_SENS):
         gsValues.append(gs[i].getValue())
         if gsValues[i] > threshold[i]:
-            filted |= (0x01 << (NB_GROUND_SENS - i - 1))
-    # print(*gsValues, sep = '\t')
+            filted +="1"
+        else:
+            filted += "0"
+    #print(*gsValues, sep = '\t')
     return filted
 
-# Functions to control Motors
+# Phần code điều khiển xe
 def DeterminePosition(filted):
-    if (filted == 0b00010000 or filted == 0b00001000 or filted == 0b00011000):
+    if (filted == "11101111" or filted == "11110111" or filted == "11100111"):
         return MID
-    elif (filted == 0b10000000 or filted == 0b11000000 or filted == 0b01100000 or filted == 0b00110000):
-        return RIGHT
-    elif (filted == 0b00000001 or filted == 0b00000011 or filted == 0b00000110 or filted == 0b00001100):
-        return LEFT
-    elif (filted == 0b11111111 or filted == 0b01111111 or filted == 0b11111110 or filted == 0b01111110):
+
+    elif (filted == "11001111" or filted == "11011111"):
+        return RIGHT_1
+    elif (filted == "11110011" or filted == "11111011"):
+        return LEFT_2
+    elif (filted == "10111111" or filted == "10011111"):
+        return RIGHT_2
+    elif (filted == "11111101" or filted == "11111001"):
+        return LEFT_2
+    elif (filted == "01111111" or filted == "00111111"):
+        return RIGHT_3
+    elif (filted == "11111110" or filted == "11111100"):
+        return LEFT_3
+    elif (filted == "11000111" or filted == "11000011"):
+        #return RIGHT_4
+        return MID
+    elif (filted == "11100011"):
+        #return LEFT_4
+        return MID
+    elif (filted == "00011111" or filted == "00001111" or filted == "10000111" or filted == "10001111"):
+        return RIGHT_5
+    elif (filted == "11111000" or filted == "11110000" or filted == "11100001" or filted == "11110001"):
+        return LEFT_5
+    elif (filted == "00000111"):
+        return RIGHT_6
+    elif (filted == "11100000"):
+        return LEFT_6   
+    elif (filted == "00000000" or filted == "00000011" or filted == "10000000" or filted == "00000001" or filted == "10000001"):
+        return FULL_SIGNAL    
+    elif (filted == "00011000" or filted == "11000000" or filted == "00001000" or filted == "00010000" or filted == "00100100"):
         return FULL_SIGNAL
-    elif filted == 0b00000000:
+    
+    elif filted == "11111111":
         return BLANK_SIGNAL
-    return NOP
-
+    else:
+        return NOP
+    
 def GoStraight(filted):
-    if filted == 0b00010000:
-        # return left_ratio, right_ratio
-        return 0.9, 1.0
-    if filted == 0b00001000:
-        return 1.0, 0.9
-    if filted == 0b00011000:
-        return 1.0, 1.0
-    return 1.0, 1.0
-
-def TurnRight(filted):
-    if filted == 0b00001100:
-        # return left_ratio, right_ratio
-        return 0.9, 0.7
-    if filted == 0b00000110:
-        return 0.8, 0.55
-    if filted == 0b00000011:
-        return 0.7, 0.3
-    if filted == 0b00000001:
-        return 0.7, 0.2
-    return 1.0, 1.0
+    #print("Go straight\n")
+    pos = DeterminePosition(filted)
+    if pos == MID:
+        return 0.9, 0.9
 
 def TurnLeft(filted):
-    if filted == 0b00110000:
-        # return left_ratio, right_ratio
-        return 0.7, 0.9
-    if filted == 0b01100000:
-        return 0.55, 0.8
-    if filted == 0b11000000:
-        return 0.3, 0.7
-    if filted == 0b10000000:
-        return 0.2, 0.7
-    return 1.0, 1.0
-
-def TurnLeftCorner():
-    # return left_ratio, right_ratio
-    return 0.0, 0.7
-
-def TurnRightCorner():
-    # return left_ratio, right_ratio
-    return 0.7, 0.0
-
-def contrain(value, min, max):
-    if value < min:
-        return min
-    if value > max:
-        return max
-    return value
-
-# Main loop:
-# - perform simulation stegs until Webots is stopping the controller
-while robot.step(timestep) != -1:
-    # Đọc giá trị của sensor
-    filted = ReadSensors()
-    # In ra màn hình giá trị của filted ở dạng nhị phân
-    print('Position: ' + str(format(filted, '08b')), sep = '\t')
-    # Xác định vị trí của xe so với làn đường
+    #print("turn left\n")
     pos = DeterminePosition(filted)
-    # Xác định hướng rẽ của ngã tư
-    if (filted == 0b11110000 or filted == 0b11111000):
-        intersectionDirect = LEFT
-    elif (filted == 0b00001111 or filted == 0b00011111): 
-        intersectionDirect = RIGHT
-    # Xác định tỉ lệ tốc độ của mỗi động cơ -> Điều khiển xe
+    if pos == RIGHT_1:
+        #print("1")
+        return 0.4, 0.7
+    elif pos == RIGHT_2:
+        #print("2")
+        return 0.2, 0.7
+    elif pos == RIGHT_3:
+        #print("3")
+        return 0.1, 0.9
+    elif (pos == RIGHT_5 or pos == RIGHT_6):
+        #print("56")
+        return 0.1, 0.7
+    else:
+        #print("...")
+        return 0.7, 0.7
+    
+    
+def TurnRight(filted):
+    #print("turn right\n")
+    pos = DeterminePosition(filted)
+    if pos == LEFT_1:
+        #print("1")
+        return 0.7, 0.4
+    elif pos == LEFT_2:
+        #print("2")
+        return 0.7, 0.2
+    elif pos == LEFT_3:
+        #print("3")
+        return 0.9, 0.1
+    elif (pos == LEFT_5 or pos == LEFT_6):
+        #print("56")
+        return 0.7, 0.1
+    else:
+        return 0.7, 0.7
+    
+#####################################
+        
+timeCounter = 0
+lastPos = 0  
+currentTime = robot.getTime()
+interSignal = 0    
+intersectionMode = 0
+preFilted = ReadSensors()
+circleMode = 0
+cornerMode = 0
+# Main loop:
+
+while robot.step(timestep) != -1:
+    filted = ReadSensors()
+    pos = DeterminePosition(filted)
+    if (robot.getTime()*1000.0 < 1000):
+        pos == MID
+        filted == "11100111"
+        #print("aaaa")
+    if lastPos == FULL_SIGNAL:
+        if pos != FULL_SIGNAL:
+            #print("intersection ")
+            if interSignal == LEFT_inter:
+                currentTime = robot.getTime()
+                intersectionMode = 1
+            elif interSignal == RIGHT_inter:
+                currentTime = robot.getTime()
+                intersectionMode = -1
+            elif interSignal == 0:
+                circleMode = 1
+                
+    if cornerMode == 1:
+        intersectionMode = 1
+        currentTime = robot.getTime()
+        cornerMode = 0
+    elif cornerMode == -1:
+        intersectionMode = -1
+        currentTime = robot.getTime()
+        cornerMode = 0
+    
+    if circleMode == 1:
+        if pos == FULL_SIGNAL:
+            currentTime = robot.getTime() 
+            intersectionMode = 1
+        elif intersectionMode == 0:
+            if (pos == 4 or pos == -4 or pos == -5 or pos == -6 or pos == O):
+                currentTime = robot.getTime() 
+                intersectionMode = 1
+                circleMode = 0
+              
+                    
+    #intersection signal setup
+    if (pos == RIGHT_5 or pos == RIGHT_6):
+        interSignal = LEFT_inter
+    elif (pos == LEFT_5 or pos == LEFT_6):
+        interSignal = RIGHT_inter
+       
+    #to go straight
     if pos == MID:
         left_ratio, right_ratio = GoStraight(filted)
-    elif pos == LEFT:
+        timeCounter = 0
+    #to turn right
+    elif (pos == LEFT_1 or pos == LEFT_2 or pos == LEFT_3):
         left_ratio, right_ratio = TurnRight(filted)
-    elif pos == RIGHT:
+        timeCounter = 0
+    #to turn left
+    elif (pos == RIGHT_1 or pos == RIGHT_2 or pos == RIGHT_3):
         left_ratio, right_ratio = TurnLeft(filted)
+        timeCounter = 0
+    
     elif pos == BLANK_SIGNAL:
-        if (preFilted == 0b11000000 or preFilted == 0b11100000 or preFilted == 0b11110000 or preFilted == 0b11111000):
-            print('Turn left corner')
-            left_ratio, right_ratio = TurnLeftCorner()
-        elif (preFilted == 0b00000011 or preFilted == 0b00000111 or preFilted == 0b00001111 or preFilted == 0b00011111):
-            print('Turn right corner')
-            left_ratio, right_ratio = TurnRightCorner()
-        elif (preFilted == 0b00011000 or preFilted == 0b00010000 or preFilted == 0b00001000):
-            print("Lost of road markings\n");
-            left_ratio, right_ratio = 1.0, 1.0
+        
+        if (lastPos == LEFT_1 or lastPos == LEFT_2 or lastPos == LEFT_3):
+            left_ratio, right_ratio = TurnRight(preFilted)
+        elif (lastPos == RIGHT_1 or lastPos == RIGHT_2 or lastPos == RIGHT_3):
+            left_ratio, right_ratio = TurnLeft(preFilted)
+        elif lastPos == MID:
+            left_ratio,right_ratio = GoStraight(preFilted)
+        if interSignal == LEFT_inter:
+            cornerMode = 1
+        elif interSignal == RIGHT_inter:
+            cornerMode = -1
+        pos = lastPos
+        filted = preFilted
+        
     elif pos == FULL_SIGNAL:
-        if intersectionDirect == LEFT:
-            print("Turn left intersection\n");
-            left_ratio, right_ratio = TurnLeftCorner()
-        elif intersectionDirect == RIGHT:
-            print("Turn right intersection\n");
-            left_ratio, right_ratio = TurnRightCorner()
+        left_ratio, right_ratio = GoStraight("11100111")
+        #print("FULL")
+        timeCounter += 1
             
-    # Giới hạn tỉ lệ tốc độ của động cơ
-    left_ratio = contrain(left_ratio, 0, 1)
-    right_ratio = contrain(right_ratio, 0, 1)
-    # Điều chỉnh tốc độ động cơ
+    elif pos == NOP:
+        #print("nop")
+        left_ratio, right_ratio = 0.2, 0.2
+        """
+        pos = lastPos
+        filted = preFilted
+        """
+    if (intersectionMode != 0):
+        timer = robot.getTime() - currentTime
+        if timer*1000.0 < 640:
+            #print(timer)
+            if intersectionMode == 1:
+                left_ratio, right_ratio = 0.0, 0.5
+            elif intersectionMode == -1:
+                left_ratio, right_ratio = 0.5, 0.0
+        else:
+            intersectionMode = 0
+            interSignal = 0
+    
+    #print('Position: ' + filted)
+    #print("intersignal:" +str(interSignal))
+    #print(intersectionMode)
+    #print("time counter =" +str(timeCounter))   
+    #print("circle Mode:")
+    #print(circleMode)             
+    #print("cornerMode:" +str(cornerMode))   
+     
+    if timeCounter >= 9:
+        left_ratio, right_ratio = 0.0, 0.0   
+
     lm.setVelocity(left_ratio * MAX_SPEED)
     rm.setVelocity(right_ratio * MAX_SPEED)
     
     preFilted = filted
+
+#lastpos setup  
     
+    if pos == MID:
+        lastPos= MID
+    elif pos == FULL_SIGNAL:
+        lastPos = FULL_SIGNAL
+        
+    elif pos == LEFT_1:
+        lastPos = LEFT_1
+    elif pos == LEFT_2:
+        lastPos = LEFT_2
+    elif pos == LEFT_3:
+        lastPos = LEFT_3
+    elif pos == LEFT_4:
+        lastPos = LEFT_4
+    elif pos == LEFT_5:
+        lastPos = LEFT_5
+    elif pos == LEFT_6:
+        lastPos = LEFT_6
+        
+    elif pos == RIGHT_1:
+        lastPos = RIGHT_1
+    elif pos == RIGHT_2:
+        lastPos = RIGHT_2
+    elif pos == RIGHT_3:
+        lastPos = RIGHT_3
+    elif pos == RIGHT_4:
+        lastPos = RIGHT_4
+    elif pos == RIGHT_5:
+        lastPos = RIGHT_5
+    elif pos == RIGHT_6:
+        lastPos = RIGHT_6    
+      
     pass
 
 # Enter here exit cleanup code.
